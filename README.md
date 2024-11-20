@@ -1,5 +1,5 @@
 # mrabuild.py
-This is a simple and crude, yet effective, MiSTer MRA file scanner/rebuilder writter in pure python.
+This is a simple and crude, yet effective, MiSTer MRA file scanner/rebuilder written in pure python.
 
 No need to compile anything or mess with dependencies/modules, you just need a typical python 3 environment.
 
