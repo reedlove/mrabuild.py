@@ -42,6 +42,7 @@ while check:
         check = False
 
 if not run:
+    inmra.close()
     bye('Invalid MRA file.')
 
 # Process the MRA file.
