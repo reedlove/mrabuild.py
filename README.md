@@ -5,7 +5,7 @@ No need to compile anything or mess with dependencies/modules, you just need a t
 
 Using this will parse out the file names and checksums from the mra file, scan the rom path you specify for the needed files, and then rebuild the proper zip files in the current directory.
 
-Warnings will be issued if the proper files cannot be located. This program will not override existing files.
+Warnings will be issued if the proper files cannot be located. This program will not overwrite existing files.
 
 Usage:
 mrabuild.py *file.mra* *rompath*
