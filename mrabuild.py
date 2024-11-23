@@ -33,13 +33,12 @@ else:
 ## Main Logic ##
 # Check for valid markup.
 run = False
-check = True
 
-while check:
-    line = inmra.readline()
+for line in inmra.readlines()
     if '<misterromdescription' in line:
         run = True
-        check = False
+        inmra.seek(0)
+        break
 
 if not run:
     inmra.close()
