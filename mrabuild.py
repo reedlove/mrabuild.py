@@ -34,7 +34,7 @@ else:
 # Check for valid markup.
 run = False
 
-for line in inmra.readlines()
+for line in inmra.readlines():
     if '<misterromdescription' in line:
         run = True
         inmra.seek(0)
