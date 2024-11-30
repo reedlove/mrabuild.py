@@ -57,9 +57,10 @@ while run:
     if line == '</misterromdescription>':
         run = False
         continue
-    if '<rom' in line and 'zip="' in line:
-        idx1 = line.index('zip="') + 5
-        idx2 = line.index('"', idx1)
+    if '<rom' in line and 'zip=' in line:
+        idx1 = line.index('zip=') + 5
+        esc = line[idx1 - 1]
+        idx2 = line.index(esc, idx1)
         zipname = line[idx1:idx2]
         if '|' in zipname:
             for item in zipname.split('|'):
@@ -67,11 +68,13 @@ while run:
         else:
             zipfiles.append(zipname)
     elif '<part' in line and 'crc=' in line and 'name=' in line:
-        idx1 = line.index('crc="') + 5
-        idx2 = line.index('"', idx1)
+        idx1 = line.index('crc=') + 5
+        esc = line[idx1 - 1]
+        idx2 = line.index(esc, idx1)
         crc = line[idx1:idx2]
-        idx1 = line.index('name="') + 6
-        idx2 = line.index('"', idx1)
+        idx1 = line.index('name=') + 6
+        esc = line[idx1 - 1]
+        idx2 = line.index(esc, idx1)
         name = line[idx1:idx2]
         mracrcs[crc] = name
 
