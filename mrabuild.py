@@ -81,15 +81,23 @@ while run:
 inmra.close()
 
 # Record zip file crcs and names.
+outfile = open('invalid.txt', 'a')
+
 for zipname in zipfiles:
     if not os.path.isfile(zipdir + zipname):
         bye('Could not find: ' + zipname)
-    infile = zipfile.ZipFile(zipdir + zipname)
+    try:
+        infile = zipfile.ZipFile(zipdir + zipname)
+    except zipfile.BadZipFile:
+        outfile.write(zipname + '\n')
+        bye(zipname + ' *INVALID ZIP FILE*')
     for item in infile.infolist():
         name = item.filename
         crc = crchex(item.CRC)
         zipcrcs[crc] = name
     infile.close()
+
+outfile.close()
 
 # Verify that all needed files exist.
 for crc in mracrcs:
