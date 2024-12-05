@@ -1,124 +1,157 @@
 #!/usr/bin/python3
-import os, zipfile, sys
+import os, shutil, sys, zipfile
 
+# Boiler plate
 def bye(msg):
     print(msg)
-    print('Exiting...')
     quit()
 
-def crchex(num):
-    num = int(num)
-    num = hex(num)[2:]
-    while len(num) < 8:
-        num = '0' + num
-    return num
+def hexfmt(item):
+    item = int(item)
+    item = hex(item)[2:]
+    while len(item) < 8:
+        item = '0' + item
+    return item
 
-usetext = 'Usage: mrabuild.py *file.mra* *rom path*'
+usage = 'mrabuild.py *mra file* *src path* *dst path*'
 
-if len(sys.argv) != 3:
-    bye(usetext)
+if len(sys.argv) != 4:
+    bye(usage)
 
-try:
-    inmra = open(sys.argv[1])
-except IOError:
-    bye('Invalid MRA file path')
+mrafile = sys.argv[1]
+srcpath = sys.argv[2]
+dstpath = sys.argv[3]
 
-if not os.path.isdir(sys.argv[2]):
-    bye('Invalid ROM path.')
-else:
-    zipdir = sys.argv[2]
-    if zipdir[-1] != '/':
-        zipdir += '/'
-
-## Main Logic ##
-# Check for valid markup.
-run = False
-
-for line in inmra:
-    if '<misterromdescription' in line:
-        run = True
-        inmra.seek(0)
-        break
-
-if not run:
-    inmra.close()
+# Command Checks
+if not os.path.isfile(mrafile):
     bye('Invalid MRA file.')
 
-# Process the MRA file.
-zipfiles = []
-mracrcs = {}
-zipcrcs = {}
+if not os.path.isdir(srcpath):
+    bye('Invalid SRC path.')
 
-while run:
-    line = inmra.readline()
+if not os.path.isdir(dstpath):
+    bye('Invalid DST path.')
+
+if srcpath == dstpath:
+    bye('*src path* and *dst path* must not match.')
+
+# MRA Processing
+inmra = open(mrafile)
+
+ismra = False
+zipnames = False
+
+for line in inmra:
     line = line.strip()
     if line == '':
         continue
-    if line == '</misterromdescription>':
-        run = False
-        continue
-    if '<rom' in line and 'zip=' in line:
-        idx1 = line.index('zip=') + 5
-        esc = line[idx1 - 1]
-        idx2 = line.index(esc, idx1)
-        zipname = line[idx1:idx2]
-        if '|' in zipname:
-            for item in zipname.split('|'):
-                zipfiles.append(item)
-        else:
-            zipfiles.append(zipname)
-    elif '<part' in line and 'crc=' in line and 'name=' in line:
-        idx1 = line.index('crc=') + 5
-        esc = line[idx1 - 1]
-        idx2 = line.index(esc, idx1)
-        crc = line[idx1:idx2]
-        idx1 = line.index('name=') + 6
-        esc = line[idx1 - 1]
-        idx2 = line.index(esc, idx1)
-        name = line[idx1:idx2]
-        mracrcs[crc] = name
+    if ismra:
+        if 'zip=' in line:
+            idx1 = line.index('zip=') + 5
+            esc = line[idx1 - 1]
+            idx2 = line.index(esc, idx1)
+            zipnames = line[idx1:idx2]
+            if '|' in zipnames:
+                zipnames = zipnames.split('|')
+            else:
+                zipnames = [zipnames]
+        elif '<part ' in line and 'name=' in line and 'crc=' in line:
+            idx1 = line.index('name=') + 6
+            esc = line[idx1 - 1]
+            idx2 = line.index(esc, idx1)
+            name = line[idx1:idx2]
+            idx1 = line.index('crc=') + 5
+            esc = line[idx1 - 1]
+            idx2 = line.index(esc, idx1)
+            crc = line[idx1:idx2]
+            if crc not in mracrcs:
+                mracrcs[crc] = name
+    elif '<misterromdescription>' in line:
+        ismra = True
+        mracrcs = {}
+        print('Processing:', mrafile)
 
 inmra.close()
 
-# Record zip file crcs and names.
-outfile = open('invalid.txt', 'a')
+if not ismra:
+    bye('Invalid MRA file.')
 
-for zipname in zipfiles:
-    if not os.path.isfile(zipdir + zipname):
-        bye('Could not find: ' + zipname)
-    try:
-        infile = zipfile.ZipFile(zipdir + zipname)
-    except zipfile.BadZipFile:
-        outfile.write(zipname + '\n')
-        bye(zipname + ' *INVALID ZIP FILE*')
-    for item in infile.infolist():
-        name = item.filename
-        crc = crchex(item.CRC)
-        zipcrcs[crc] = name
-    infile.close()
+if not zipnames:
+    bye('No zip files in MRA.')
 
-outfile.close()
+# Start checking stuff
+if srcpath[-1] != '/':
+    srcpath += '/'
 
-# Verify that all needed files exist.
-for crc in mracrcs:
-    if crc in zipcrcs:
-        print(crc, '*FOUND*')
+if dstpath[-1] != '/':
+    dstpath += '/'
+
+check = True
+
+for zipname in zipnames:
+    fullpath = srcpath + zipname
+    if os.path.isfile(fullpath):
+        if not zipfile.is_zipfile(fullpath):
+            print('Corrupted:', fullpath)
+            check = False
+        else:
+            print('Found:', fullpath)
     else:
-        bye(crc + ' *NOT FOUND*')
+        print('Missing:', fullpath)
+        check = False
 
-# Rebuild ZIP files.
-for zipname in zipfiles:
-    if os.path.isfile(zipname):
-        print(zipname, '*EXISTS*')
-        continue
-    print('Building:', zipname)
-    outzip = zipfile.ZipFile(zipname, mode='w')
-    inzip = zipfile.ZipFile(zipdir + zipname)
-    for item in inzip.infolist():
-        crc = crchex(item.CRC)
+if not check:
+    bye('Zipfiles are missing or corrupted.')
+
+zipcrcs = {}
+
+for zipname in zipnames:
+    fullpath = srcpath + zipname
+    inzip = zipfile.ZipFile(fullpath)
+    for info in inzip.infolist():
+        crc = hexfmt(info.CRC)
+        name = info.filename
+        if crc not in zipcrcs:
+            zipcrcs[crc] = name
+    inzip.close()
+
+# Verify that all CRCs have been found.
+for crc in mracrcs:
+    if crc not in zipcrcs:
+        print('Missing:', mracrcs[crc], crc)
+        check = False
+
+if not check:
+    bye('Failed: ' + mrafile)
+
+for zipname in zipnames:
+    fullpath = dstpath + zipname
+    if os.path.isfile(fullpath):
+        print('Exists: ', fullpath)
+        if not zipfile.is_zipfile(fullpath):
+            print('Corrupted:', fullpath)
+            print('Deleting:', fullpath)
+            os.remove(fullpath)
+            print('Creating:', fullpath)
+            outzip = zipfile.ZipFile(fullpath, 'w') 
+        else:
+            print('Appending to:', fullpath)
+            outzip = zipfile.ZipFile(fullpath, 'a')
+    else:
+        print('Creating:', fullpath)
+        outzip = zipfile.ZipFile(fullpath, 'w')
+    fullpath = srcpath + zipname
+    print('Reading from:', fullpath)
+    inzip = zipfile.ZipFile(fullpath)
+    for info in inzip.infolist():
+        crc = hexfmt(info.CRC)
         if crc in mracrcs:
-            outzip.writestr(mracrcs[crc], inzip.read(item.filename))
+            if mracrcs[crc] not in outzip.namelist():
+                print('Adding:', mracrcs[crc])
+                outzip.writestr(mracrcs[crc], inzip.read(info.filename))
+            else:
+                print('Contains:', mracrcs[crc])
     inzip.close()
     outzip.close()
 
-bye('Done.')
+print('Done.')
