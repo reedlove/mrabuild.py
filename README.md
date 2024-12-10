@@ -10,4 +10,4 @@ As long as there aren't multiples of the same file name, mrabuild.py will also c
 Warnings will be issued if the proper files cannot be located. This program will not overwrite existing files.
 
 Usage:
-mrabuild.py *file.mra* *path to source zip files* *destination*
+mrabuild.py *file.mra* *"path to source zip files"* *"destination directory*
